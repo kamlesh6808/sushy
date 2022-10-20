@@ -136,8 +136,18 @@ class Volume(base.ResourceBase):
         if (payload and payload.get(_OAT_PROP)
                 == res_cons.ApplyTime.IMMEDIATE.value):
             blocking = True
-        r = self._conn.delete(self._path, data=payload, blocking=blocking,
-                              timeout=timeout)
+        try:
+            r = self._conn.delete(self._path, data=payload,
+                                  blocking=blocking, timeout=timeout)
+        except exceptions.ServerSideError as exc:
+            if 'Unsupported parameter name @Redfish.OperationApplyTime'\
+                in str(exc.message):
+                # retry without apply time
+                payload.pop(_OAT_PROP)
+                r = self._conn.delete(self._path, data=payload,
+                                      blocking=blocking, timeout=timeout)
+            else:
+                raise exc
         return r
 
     def delete(self, payload=None, apply_time=None, timeout=500):
